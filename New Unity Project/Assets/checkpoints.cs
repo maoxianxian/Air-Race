@@ -4,8 +4,10 @@ using UnityEngine;
 using System.IO;
 public class checkpoints : MonoBehaviour {
 	public TextAsset T;
-	System.IO.StreamReader reader;
 	public GameObject sphere;
+	public Shader dirshader;
+	public Shader veloshader;
+	System.IO.StreamReader reader;
 	GameObject campus;
 	Leap.Hand lefthand;
 	Leap.Hand righthand;
@@ -17,49 +19,93 @@ public class checkpoints : MonoBehaviour {
 	GameObject righto;
 	GameObject lefto;
 	LineRenderer direction;
-	LineRenderer rightline2;
+	LineRenderer nextpoint;
 	Vector3 leaporigin;
 	Vector3 preRightvect=Vector3.zero;
 	float speed;
-
+	List<GameObject> checkpointlist;
+	float timer=0;
+	Vector3 linestart;
+	Vector3 cameraforward;
+	GameObject countdownText;
+	GameObject stopWatchText;
+	GameObject leapspace;
+	int freezecounter=5;
+	float totaltime;
+	int currentpoint=0;
 	// Use this for initialization
 	void Start () {
 		controller= new Leap.Controller ();
 		campus = GameObject.FindGameObjectWithTag ("campus");
 		reader = new StreamReader (toStream (T.text));
 		string[] data;
+		checkpointlist = new List<GameObject> ();
 		while (!reader.EndOfStream) {
 			data = reader.ReadLine ().Split (' '); 
 			GameObject temp=GameObject.Instantiate (sphere);
 			temp.transform.parent = campus.transform;
-			temp.transform.position = new Vector3 (float.Parse(data [0])*0.0254f, float.Parse(data [1])*0.0254f, float.Parse(data [2])*0.0254f);
+			temp.transform.localPosition = new Vector3 (float.Parse(data [0])*0.0254f, float.Parse(data [1])*0.0254f, float.Parse(data [2])*0.0254f);
+			temp.tag = "checkpoint";
+			checkpointlist.Add (temp);
 		}
 		player = GameObject.FindGameObjectWithTag ("Player");
-		//GameObject tGameObject.Instantiate (sphere);
 		lefto=GameObject.Find("leftorigin");
 		righto = GameObject.Find ("rightorigin");
-		//lefto.SetActive (false);
-		//righto.SetActive (false);
 		velocity = player.transform.forward;
-		direction = DrawLine (Vector3.zero, Vector3.zero, Color.blue);
-		rightline2 = DrawLine (Vector3.zero, Vector3.zero, Color.red);
+		direction = DrawLine (Vector3.zero, Vector3.zero, Color.blue,veloshader);
+		nextpoint = DrawLine (Vector3.zero, Vector3.zero, Color.red,dirshader);
+		countdownText = GameObject.Find ("countdownText");
+		stopWatchText = GameObject.Find ("stopwatch");
+		leapspace = player.transform.GetChild (0).transform.GetChild (0).gameObject;
 	}
 	
 	// Update is called once per frame
 	void Update () {
-		rightorigin = righto.transform.position;
-		leftorigin = lefto.transform.position;
-		leaporigin = player.transform.GetChild (0).transform.GetChild (0).transform.position;
-
+		updatevariables ();
+		countdown (freezecounter);
+		stopwatch (freezecounter);
 		connectToHands ();
 		decideDirection ();
 		decideSpeed ();
-
-		if (lefthand != null) {
+		if (lefthand != null && timer>freezecounter) {
 			player.transform.position += speed*velocity;
 		}
 	}
 
+	void updatevariables(){
+		timer += Time.deltaTime;
+		rightorigin = righto.transform.position;
+		leftorigin = lefto.transform.position;
+		leaporigin = leapspace.transform.position;
+		cameraforward = leapspace.transform.forward;
+		linestart = leaporigin + cameraforward;
+		nextpoint.SetPosition (0, linestart);
+		nextpoint.SetPosition (1, checkpointlist [currentpoint].transform.position);
+	}
+
+	void countdown(float cliptime){
+		if (timer < cliptime) {
+			countdownText.SetActive (true);
+			countdownText.GetComponent<UnityEngine.UI.Text> ().text = "Count down: " +System.Environment.NewLine+ (5 - Mathf.Floor (timer));
+			countdownText.transform.position = linestart;
+			countdownText.transform.forward = cameraforward;
+		} else {
+			countdownText.SetActive (false);
+		}
+	}
+
+	void stopwatch(float cliptime){
+		if (timer > cliptime) {
+			stopWatchText.SetActive (true);
+			stopWatchText.GetComponent<UnityEngine.UI.Text> ().text = Mathf.Floor (totaltime).ToString();
+			totaltime += Time.deltaTime;
+			stopWatchText.transform.position = linestart - leapspace.transform.up*0.4f;
+			stopWatchText.transform.forward = cameraforward;
+		} else {
+			stopWatchText.SetActive (false);
+		}
+	}
+	//compute direction of velocity and draw a line
 	void decideDirection(){
 		if (righthand != null) {
 			Vector3 rightvect =  Vector3.Normalize(leapToUnity (righthand.PalmPosition / 1000.0f));
@@ -67,11 +113,11 @@ public class checkpoints : MonoBehaviour {
 			Vector3 axis = Vector3.Normalize(Vector3.Cross (preRightvect,rightvect));
 			if (deg < 0.999 && isFist(righthand)) {
 				velocity=Quaternion.AngleAxis(deg*3, axis) * velocity;
-				direction.SetPosition (0, leaporigin+player.transform.forward);
-				direction.SetPosition (1, leaporigin+velocity*10+player.transform.forward);
 				preRightvect = rightvect;
 			}
 		} 
+		direction.SetPosition (0, linestart);
+		direction.SetPosition (1, linestart+velocity*10);
 	}
 
 	void decideSpeed(){
@@ -84,7 +130,7 @@ public class checkpoints : MonoBehaviour {
 			speed = 0;
 		}
 	}
-
+		
 	Vector3 leapToUnity(Leap.Vector v)
 	{
 		Vector3 result = new Vector3(0,0,0);
@@ -106,6 +152,7 @@ public class checkpoints : MonoBehaviour {
 		}
 		return false;
 	}
+
 	void connectToHands(){
 		if (controller.Frame ().Hands.Count == 1) {
 			Leap.Hand temp = controller.Frame ().Hands [0];
@@ -131,6 +178,7 @@ public class checkpoints : MonoBehaviour {
 			righthand = null;
 		}
 	}
+
 	Stream toStream(string str)
 	{
 		MemoryStream stream = new MemoryStream ();
@@ -141,14 +189,13 @@ public class checkpoints : MonoBehaviour {
 		return stream;
 	}
 
-	LineRenderer DrawLine(Vector3 start, Vector3 end,Color color)
+	LineRenderer DrawLine(Vector3 start, Vector3 end,Color color,Shader shad)
 	{
 		GameObject myline = new GameObject ();
 		myline.transform.position = start;
 		myline.AddComponent<LineRenderer> ();
 		LineRenderer lr = myline.GetComponent<LineRenderer> ();
-		//lr.material = new Material (Shader.Find("Particles/Additive"));
-		lr.SetColors (color,color);
+		lr.material = new Material (shad);
 		lr.SetWidth (0.02f, 0.02f);
 		lr.positionCount = 2;
 		lr.SetPosition (0, start);
