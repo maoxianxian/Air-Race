@@ -29,10 +29,13 @@ public class checkpoints : MonoBehaviour {
 	Vector3 cameraforward;
 	GameObject countdownText;
 	GameObject stopWatchText;
+	GameObject nextpointtext;
 	GameObject leapspace;
 	int freezecounter=5;
 	float totaltime;
 	int currentpoint=0;
+	int pinchframe=0;
+	bool end=false;
 	// Use this for initialization
 	void Start () {
 		controller= new Leap.Controller ();
@@ -41,7 +44,7 @@ public class checkpoints : MonoBehaviour {
 		string[] data;
 		checkpointlist = new List<GameObject> ();
 		while (!reader.EndOfStream) {
-			data = reader.ReadLine ().Split (' '); 
+			data = reader.ReadLine ().Split (' ');
 			GameObject temp=GameObject.Instantiate (sphere);
 			temp.transform.parent = campus.transform;
 			temp.transform.localPosition = new Vector3 (float.Parse(data [0])*0.0254f, float.Parse(data [1])*0.0254f, float.Parse(data [2])*0.0254f);
@@ -56,6 +59,7 @@ public class checkpoints : MonoBehaviour {
 		nextpoint = DrawLine (Vector3.zero, Vector3.zero, Color.red,dirshader);
 		countdownText = GameObject.Find ("countdownText");
 		stopWatchText = GameObject.Find ("stopwatch");
+		nextpointtext = GameObject.Find ("nextPoint");
 		leapspace = player.transform.GetChild (0).transform.GetChild (0).gameObject;
 	}
 	
@@ -67,6 +71,12 @@ public class checkpoints : MonoBehaviour {
 		connectToHands ();
 		decideDirection ();
 		decideSpeed ();
+		if (!end) {
+			detectCollision ();
+		}
+	}
+
+	void FixedUpdate(){
 		if (lefthand != null && timer>freezecounter) {
 			player.transform.position += speed*velocity;
 		}
@@ -109,13 +119,24 @@ public class checkpoints : MonoBehaviour {
 	void decideDirection(){
 		if (righthand != null) {
 			Vector3 rightvect =  Vector3.Normalize(leapToUnity (righthand.PalmPosition / 1000.0f));
+			//nextpoint.SetPosition (0, leaporigin);
+			//nextpoint.SetPosition (1, leaporigin+rightvect);
 			float deg = Vector3.Dot (preRightvect, rightvect);
 			Vector3 axis = Vector3.Normalize(Vector3.Cross (preRightvect,rightvect));
-			if (deg < 0.999 && isFist(righthand)) {
-				velocity=Quaternion.AngleAxis(deg*3, axis) * velocity;
+			if (deg < 0.999 && isFist (righthand)) {
+				velocity = Quaternion.AngleAxis (deg * 3, axis) * velocity;
 				preRightvect = rightvect;
+				pinchframe = 0;
+			} else if (!isFist (righthand) && righthand.PinchStrength > 0.9) {
+				pinchframe++;
+				if (pinchframe > 6) {
+					velocity = cameraforward;
+					pinchframe = 0;
+				}
+			} else {
+				pinchframe = 0;
 			}
-		} 
+		}
 		direction.SetPosition (0, linestart);
 		direction.SetPosition (1, linestart+velocity*10);
 	}
@@ -147,7 +168,7 @@ public class checkpoints : MonoBehaviour {
 				badfinger++;
 			}
 		}
-		if (badfinger > 1) {
+		if (badfinger > 3) {
 			return true;
 		}
 		return false;
@@ -177,6 +198,24 @@ public class checkpoints : MonoBehaviour {
 			lefthand = null;
 			righthand = null;
 		}
+	}
+
+	void detectCollision(){
+		GameObject point = checkpointlist [currentpoint];
+		float dist = (player.transform.position - point.transform.position).magnitude;
+		nextpointtext.GetComponent<UnityEngine.UI.Text>().text = Mathf.Floor(dist).ToString ();	
+		nextpoint.transform.position = point.transform.position;
+		nextpoint.transform.forward = cameraforward;
+		if (dist < 10) {
+			currentpoint++;
+			if (currentpoint == checkpointlist.Count) {
+				gameEnd ();
+			}
+		}
+	}
+
+	void gameEnd(){
+		bool end = true;
 	}
 
 	Stream toStream(string str)
