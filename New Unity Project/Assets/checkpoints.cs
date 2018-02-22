@@ -118,7 +118,7 @@ public class checkpoints : MonoBehaviour {
 	//compute direction of velocity and draw a line
 	void decideDirection(){
 		if (righthand != null) {
-			Vector3 rightvect =  Vector3.Normalize(leapToUnity (righthand.PalmPosition / 1000.0f));
+			Vector3 rightvect =  Vector3.Normalize(LeapToCamera(leapToUnity (righthand.PalmPosition / 1000.0f)));
 			//nextpoint.SetPosition (0, leaporigin);
 			//nextpoint.SetPosition (1, leaporigin+rightvect);
 			float deg = Vector3.Dot (preRightvect, rightvect);
@@ -151,7 +151,13 @@ public class checkpoints : MonoBehaviour {
 			speed = 0;
 		}
 	}
-		
+
+	Vector3 LeapToCamera(Vector3 input){
+		float deg = Vector3.Dot (leapspace.transform.forward, player.transform.forward);
+		Vector3 axis = Vector3.Cross (leapspace.transform.forward, player.transform.forward);
+		return Quaternion.AngleAxis (deg, axis) * input;
+	}
+
 	Vector3 leapToUnity(Leap.Vector v)
 	{
 		Vector3 result = new Vector3(0,0,0);
