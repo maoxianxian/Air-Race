@@ -2169,6 +2169,7 @@ MonoBehaviour:
   sphere: {fileID: 1407370244905970, guid: 2db48dc77bf597648b6dfaf673a4031e, type: 2}
   dirshader: {fileID: 4800000, guid: 1f14f9a17827985409d58fbf80921ad4, type: 3}
   veloshader: {fileID: 4800000, guid: 842152af307362c4ab199109dd81de31, type: 3}
+  farshader: {fileID: 4800000, guid: 2c95946a92261c44ab88bdf1acf9b284, type: 3}
 --- !u!54 &1721904261
 Rigidbody:
   m_ObjectHideFlags: 0

@@ -7,6 +7,7 @@ public class checkpoints : MonoBehaviour {
 	public GameObject sphere;
 	public Shader dirshader;
 	public Shader veloshader;
+	public Shader farshader;
 	System.IO.StreamReader reader;
 	GameObject campus;
 	Leap.Hand lefthand;
@@ -16,6 +17,7 @@ public class checkpoints : MonoBehaviour {
 	Vector3 velocity;
 	LineRenderer direction;
 	LineRenderer nextpoint;
+	LineRenderer farpoint;
 	Vector3 leaporigin;
 	Vector3 preRightvect=Vector3.zero;
 	float speed;
@@ -49,8 +51,9 @@ public class checkpoints : MonoBehaviour {
 		}
 		player = GameObject.FindGameObjectWithTag ("Player");
 		velocity = player.transform.forward;
-		direction = DrawLine (Vector3.zero, Vector3.zero, Color.blue,veloshader);
-		nextpoint = DrawLine (Vector3.zero, Vector3.zero, Color.red,dirshader);
+		direction = DrawLine (Vector3.zero, Vector3.zero, Color.blue,veloshader,0.02f);
+		nextpoint = DrawLine (Vector3.zero, Vector3.zero, Color.red,dirshader,0.02f);
+		farpoint=DrawLine (Vector3.zero, Vector3.zero, Color.red,farshader,1.0f);
 		countdownText = GameObject.Find ("countdownText");
 		stopWatchText = GameObject.Find ("stopwatch");
 		nextpointtext = GameObject.Find ("nextPoint");
@@ -89,6 +92,9 @@ public class checkpoints : MonoBehaviour {
 		if (!end) {
 			nextpoint.SetPosition (0, linestart);
 			nextpoint.SetPosition (1, checkpointlist [currentpoint].transform.position);
+		}if (currentpoint < checkpointlist.Count - 1) {
+			farpoint.SetPosition (0, checkpointlist [currentpoint].transform.position);
+			farpoint.SetPosition (1, checkpointlist [currentpoint+1].transform.position);
 		}
 	}
 
@@ -250,14 +256,14 @@ public class checkpoints : MonoBehaviour {
 		return stream;
 	}
 
-	LineRenderer DrawLine(Vector3 start, Vector3 end,Color color,Shader shad)
+	LineRenderer DrawLine(Vector3 start, Vector3 end,Color color,Shader shad,float width)
 	{
 		GameObject myline = new GameObject ();
 		myline.transform.position = start;
 		myline.AddComponent<LineRenderer> ();
 		LineRenderer lr = myline.GetComponent<LineRenderer> ();
 		lr.material = new Material (shad);
-		lr.SetWidth (0.02f, 0.02f);
+		lr.SetWidth (width, width);
 		lr.positionCount = 2;
 		lr.SetPosition (0, start);
 		lr.SetPosition (1, end);
