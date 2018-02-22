@@ -14,10 +14,6 @@ public class checkpoints : MonoBehaviour {
 	Leap.Controller controller;
 	GameObject player;
 	Vector3 velocity;
-	Vector3 leftorigin;
-	Vector3 rightorigin;
-	GameObject righto;
-	GameObject lefto;
 	LineRenderer direction;
 	LineRenderer nextpoint;
 	Vector3 leaporigin;
@@ -52,8 +48,6 @@ public class checkpoints : MonoBehaviour {
 			checkpointlist.Add (temp);
 		}
 		player = GameObject.FindGameObjectWithTag ("Player");
-		lefto=GameObject.Find("leftorigin");
-		righto = GameObject.Find ("rightorigin");
 		velocity = player.transform.forward;
 		direction = DrawLine (Vector3.zero, Vector3.zero, Color.blue,veloshader);
 		nextpoint = DrawLine (Vector3.zero, Vector3.zero, Color.red,dirshader);
@@ -61,7 +55,9 @@ public class checkpoints : MonoBehaviour {
 		stopWatchText = GameObject.Find ("stopwatch");
 		nextpointtext = GameObject.Find ("nextPoint");
 		leapspace = player.transform.GetChild (0).transform.GetChild (0).gameObject;
-		player.transform.position = checkpointlist [0].transform.position;
+		player.transform.position = checkpointlist [0].transform.position ;
+		player.transform.forward = checkpointlist [1].transform.position-player.transform.position;
+		velocity = player.transform.forward;
 	}
 	
 	// Update is called once per frame
@@ -87,8 +83,6 @@ public class checkpoints : MonoBehaviour {
 
 	void updatevariables(){
 		timer += Time.deltaTime;
-		rightorigin = righto.transform.position;
-		leftorigin = lefto.transform.position;
 		leaporigin = leapspace.transform.position;
 		cameraforward = leapspace.transform.forward;
 		linestart = leaporigin + cameraforward;
@@ -128,7 +122,7 @@ public class checkpoints : MonoBehaviour {
 			Vector3 rightvect =  Vector3.Normalize(leapToUnity (righthand.PalmPosition / 1000.0f));
 			float deg = Vector3.Dot (preRightvect, rightvect);
 			Vector3 axis = Vector3.Normalize(Vector3.Cross (preRightvect,rightvect));
-			Vector4 tmp = m*new Vector4 (axis.x,axis.y,axis.z, 0);
+			Vector4 tmp = m*new Vector4 (axis.x,axis.y,-axis.z, 0);
 			axis.x = tmp.x;
 			axis.y = tmp.y;
 			axis.z = tmp.z;
@@ -138,8 +132,13 @@ public class checkpoints : MonoBehaviour {
 				pinchframe = 0;
 			} else if (!isFist (righthand) && righthand.PinchStrength > 0.94) {
 				pinchframe++;
-				if (pinchframe > 6) {
-					velocity = cameraforward;
+				if (pinchframe > 4) {
+					Vector3 temp2 = Vector3.Normalize (leapToUnity (righthand.PalmPosition / 1000.0f));
+					Vector4 res = m*new Vector4 (temp2.x, temp2.y, -temp2.z, 0);
+					temp2.x = res.x;
+					temp2.y = res.y;
+					temp2.z = res.z;
+					velocity = temp2;
 					pinchframe = 0;
 				}
 			} else {
@@ -152,7 +151,7 @@ public class checkpoints : MonoBehaviour {
 
 	void decideSpeed(){
 		if (lefthand != null) {
-			speed += 0.055f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
+			speed += 0.1f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
 			if (isFist(lefthand)) {
 				speed = 0;
 			}
@@ -217,8 +216,17 @@ public class checkpoints : MonoBehaviour {
 		nextpointtext.transform.position = point.transform.position+Vector3.up*dist/10.0f;
 		nextpointtext.transform.forward = cameraforward;
 		nextpointtext.transform.localScale = new Vector3 (dist / 200.0f,dist / 200.0f,dist / 200.0f);
-		if (dist < 10) {
+		if (dist < 9.4488f) {
 			checkpointlist [currentpoint].SetActive (false);
+			AudioSource arrive;
+			if (currentpoint == 0) {
+				arrive = player.GetComponents<AudioSource> () [1];
+			} else if (currentpoint == checkpointlist.Count-1) {
+				arrive = player.GetComponents<AudioSource> () [2];
+			} else {
+				arrive= player.GetComponents<AudioSource> ()[0];
+			}
+			arrive.Play ();
 			currentpoint++;
 			if (currentpoint == checkpointlist.Count) {
 				gameEnd ();
@@ -229,6 +237,7 @@ public class checkpoints : MonoBehaviour {
 	void gameEnd(){
 		end = true;
 		stopWatchText.GetComponent<UnityEngine.UI.Text> ().text = "Total Time: " + System.Environment.NewLine + Mathf.Floor (totaltime)+"S";
+		nextpointtext.SetActive (false);
 	}
 
 	Stream toStream(string str)
