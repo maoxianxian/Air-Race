@@ -61,13 +61,16 @@ public class checkpoints : MonoBehaviour {
 		stopWatchText = GameObject.Find ("stopwatch");
 		nextpointtext = GameObject.Find ("nextPoint");
 		leapspace = player.transform.GetChild (0).transform.GetChild (0).gameObject;
+		player.transform.position = checkpointlist [0].transform.position;
 	}
 	
 	// Update is called once per frame
 	void Update () {
 		updatevariables ();
-		countdown (freezecounter);
-		stopwatch (freezecounter);
+		if (!end) {
+			countdown (freezecounter);
+			stopwatch (freezecounter);
+		}
 		connectToHands ();
 		decideDirection ();
 		decideSpeed ();
@@ -89,14 +92,16 @@ public class checkpoints : MonoBehaviour {
 		leaporigin = leapspace.transform.position;
 		cameraforward = leapspace.transform.forward;
 		linestart = leaporigin + cameraforward;
-		nextpoint.SetPosition (0, linestart);
-		nextpoint.SetPosition (1, checkpointlist [currentpoint].transform.position);
+		if (!end) {
+			nextpoint.SetPosition (0, linestart);
+			nextpoint.SetPosition (1, checkpointlist [currentpoint].transform.position);
+		}
 	}
 
 	void countdown(float cliptime){
 		if (timer < cliptime) {
 			countdownText.SetActive (true);
-			countdownText.GetComponent<UnityEngine.UI.Text> ().text = "Count down: " +System.Environment.NewLine+ (5 - Mathf.Floor (timer));
+			countdownText.GetComponent<UnityEngine.UI.Text> ().text = "Count down: " +System.Environment.NewLine+ (freezecounter - Mathf.Floor (timer));
 			countdownText.transform.position = linestart;
 			countdownText.transform.forward = cameraforward;
 		} else {
@@ -107,7 +112,7 @@ public class checkpoints : MonoBehaviour {
 	void stopwatch(float cliptime){
 		if (timer > cliptime) {
 			stopWatchText.SetActive (true);
-			stopWatchText.GetComponent<UnityEngine.UI.Text> ().text = Mathf.Floor (totaltime).ToString();
+			stopWatchText.GetComponent<UnityEngine.UI.Text> ().text = currentpoint+"/"+checkpointlist.Count+System.Environment.NewLine+Mathf.Floor (totaltime).ToString()+"S";
 			totaltime += Time.deltaTime;
 			stopWatchText.transform.position = linestart - leapspace.transform.up*0.4f;
 			stopWatchText.transform.forward = cameraforward;
@@ -118,16 +123,20 @@ public class checkpoints : MonoBehaviour {
 	//compute direction of velocity and draw a line
 	void decideDirection(){
 		if (righthand != null) {
-			Vector3 rightvect =  Vector3.Normalize(LeapToCamera(leapToUnity (righthand.PalmPosition / 1000.0f)));
-			//nextpoint.SetPosition (0, leaporigin);
-			//nextpoint.SetPosition (1, leaporigin+rightvect);
+			Camera c = leapspace.GetComponent<Camera> ();
+			Matrix4x4 m= c.cameraToWorldMatrix;
+			Vector3 rightvect =  Vector3.Normalize(leapToUnity (righthand.PalmPosition / 1000.0f));
 			float deg = Vector3.Dot (preRightvect, rightvect);
 			Vector3 axis = Vector3.Normalize(Vector3.Cross (preRightvect,rightvect));
+			Vector4 tmp = m*new Vector4 (axis.x,axis.y,axis.z, 0);
+			axis.x = tmp.x;
+			axis.y = tmp.y;
+			axis.z = tmp.z;
 			if (deg < 0.999 && isFist (righthand)) {
-				velocity = Quaternion.AngleAxis (deg * 3, axis) * velocity;
+				velocity = Quaternion.AngleAxis (deg * 3.5f, axis) * velocity;
 				preRightvect = rightvect;
 				pinchframe = 0;
-			} else if (!isFist (righthand) && righthand.PinchStrength > 0.9) {
+			} else if (!isFist (righthand) && righthand.PinchStrength > 0.94) {
 				pinchframe++;
 				if (pinchframe > 6) {
 					velocity = cameraforward;
@@ -143,7 +152,7 @@ public class checkpoints : MonoBehaviour {
 
 	void decideSpeed(){
 		if (lefthand != null) {
-			speed += 0.03f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
+			speed += 0.055f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
 			if (isFist(lefthand)) {
 				speed = 0;
 			}
@@ -151,12 +160,7 @@ public class checkpoints : MonoBehaviour {
 			speed = 0;
 		}
 	}
-
-	Vector3 LeapToCamera(Vector3 input){
-		float deg = Vector3.Dot (leapspace.transform.forward, player.transform.forward);
-		Vector3 axis = Vector3.Cross (leapspace.transform.forward, player.transform.forward);
-		return Quaternion.AngleAxis (deg, axis) * input;
-	}
+		
 
 	Vector3 leapToUnity(Leap.Vector v)
 	{
@@ -209,10 +213,12 @@ public class checkpoints : MonoBehaviour {
 	void detectCollision(){
 		GameObject point = checkpointlist [currentpoint];
 		float dist = (player.transform.position - point.transform.position).magnitude;
-		nextpointtext.GetComponent<UnityEngine.UI.Text>().text = Mathf.Floor(dist).ToString ();	
-		nextpoint.transform.position = point.transform.position;
-		nextpoint.transform.forward = cameraforward;
+		nextpointtext.GetComponent<UnityEngine.UI.Text>().text = Mathf.Floor(dist).ToString ()+" Meters";	
+		nextpointtext.transform.position = point.transform.position+Vector3.up*dist/10.0f;
+		nextpointtext.transform.forward = cameraforward;
+		nextpointtext.transform.localScale = new Vector3 (dist / 200.0f,dist / 200.0f,dist / 200.0f);
 		if (dist < 10) {
+			checkpointlist [currentpoint].SetActive (false);
 			currentpoint++;
 			if (currentpoint == checkpointlist.Count) {
 				gameEnd ();
@@ -221,7 +227,8 @@ public class checkpoints : MonoBehaviour {
 	}
 
 	void gameEnd(){
-		bool end = true;
+		end = true;
+		stopWatchText.GetComponent<UnityEngine.UI.Text> ().text = "Total Time: " + System.Environment.NewLine + Mathf.Floor (totaltime)+"S";
 	}
 
 	Stream toStream(string str)
@@ -246,5 +253,13 @@ public class checkpoints : MonoBehaviour {
 		lr.SetPosition (0, start);
 		lr.SetPosition (1, end);
 		return lr;
+	}
+
+	void OnTriggerEnter(Collider col) {
+		if (col.gameObject.tag != "checkpoint") {
+			freezecounter = 3;
+			totaltime += 3;
+			timer = 0;
+		}
 	}
 }
