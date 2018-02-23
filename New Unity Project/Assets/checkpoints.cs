@@ -144,7 +144,8 @@ public class checkpoints : MonoBehaviour {
 					temp2.x = res.x;
 					temp2.y = res.y;
 					temp2.z = res.z;
-					velocity = temp2;
+					velocity = Vector3.Normalize(temp2);
+					velocity = 0.5f * velocity + 0.5f * cameraforward;
 					pinchframe = 0;
 				}
 			} else {
@@ -157,10 +158,10 @@ public class checkpoints : MonoBehaviour {
 
 	void decideSpeed(){
 		if (lefthand != null) {
-			if(speed<5){
-				speed=5;
+			if(speed<1){
+				speed=1;
 			}
-			speed += 0.1f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
+			speed += 0.95f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
 			if (isFist(lefthand)) {
 				speed = 0;
 			}
@@ -277,5 +278,6 @@ public class checkpoints : MonoBehaviour {
 			totaltime += 3;
 			timer = 0;
 		}
+		player.transform.position += Vector3.up;
 	}
 }
