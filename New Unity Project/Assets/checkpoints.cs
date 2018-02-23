@@ -157,13 +157,14 @@ public class checkpoints : MonoBehaviour {
 
 	void decideSpeed(){
 		if (lefthand != null) {
+			if(speed<5){
+				speed=5;
+			}
 			speed += 0.1f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
 			if (isFist(lefthand)) {
 				speed = 0;
 			}
-		} else {
-			speed = 0;
-		}
+		} 
 	}
 		
 
