@@ -133,19 +133,18 @@ public class checkpoints : MonoBehaviour {
 			axis.y = tmp.y;
 			axis.z = tmp.z;
 			if (deg < 0.999 && isFist (righthand)) {
-				velocity = Quaternion.AngleAxis (deg * 3.5f, axis) * velocity;
+				velocity = Quaternion.AngleAxis (deg * 4, axis) * velocity;
 				preRightvect = rightvect;
 				pinchframe = 0;
-			} else if (!isFist (righthand) && righthand.PinchStrength > 0.94) {
+			} else if (!isFist (righthand) && righthand.PinchStrength > 0.92) {
 				pinchframe++;
-				if (pinchframe > 4) {
+				if (pinchframe > 2) {
 					Vector3 temp2 = Vector3.Normalize (leapToUnity (righthand.PalmPosition / 1000.0f));
 					Vector4 res = m*new Vector4 (temp2.x, temp2.y, -temp2.z, 0);
 					temp2.x = res.x;
 					temp2.y = res.y;
 					temp2.z = res.z;
 					velocity = Vector3.Normalize(temp2);
-					velocity = 0.5f * velocity + 0.5f * cameraforward;
 					pinchframe = 0;
 				}
 			} else {
@@ -158,12 +157,15 @@ public class checkpoints : MonoBehaviour {
 
 	void decideSpeed(){
 		if (lefthand != null) {
-			if(speed<1){
-				speed=1;
+			if(speed<5){
+				speed=5;
 			}
-			speed += 0.95f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
+			speed += 0.09f*leapToUnity (lefthand.PalmPosition / 1000.0f).magnitude;
 			if (isFist(lefthand)) {
 				speed = 0;
+			}
+			if (speed > 10) {
+				speed = 10;
 			}
 		} 
 	}
@@ -235,6 +237,7 @@ public class checkpoints : MonoBehaviour {
 				arrive= player.GetComponents<AudioSource> ()[0];
 			}
 			arrive.Play ();
+
 			currentpoint++;
 			if (currentpoint == checkpointlist.Count) {
 				gameEnd ();
@@ -277,6 +280,9 @@ public class checkpoints : MonoBehaviour {
 			freezecounter = 3;
 			totaltime += 3;
 			timer = 0;
+			player.transform.position = checkpointlist [Mathf.Max(0,currentpoint - 1)].transform.position;
+			player.transform.forward =-( checkpointlist [Mathf.Max(0,currentpoint - 1)].transform.position - checkpointlist [currentpoint].transform.position);
+				
 		}
 		player.transform.position += Vector3.up;
 	}
